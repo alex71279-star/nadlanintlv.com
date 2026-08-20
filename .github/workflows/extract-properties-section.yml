@@ -1,0 +1,43 @@
+name: Extract properties section
+
+on:
+  push:
+    branches:
+      - base44-property-sync
+    paths:
+      - '.github/workflows/extract-properties-section.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract properties and tail scripts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text = Path('index.html').read_text(encoding='utf-8', errors='replace')
+          start = text.find('<section id="properties"')
+          if start == -1:
+              raise SystemExit('properties section not found')
+          next_section = text.find('<section', start + 20)
+          end = next_section if next_section != -1 else text.find('</body>', start)
+          section = text[start:end]
+          section = section.replace('><', '>\n<')
+          Path('properties-section.html').write_text(section, encoding='utf-8')
+
+          # Capture the last 40k chars so we can inspect existing language/script behavior.
+          tail = text[-40000:].replace('><', '>\n<')
+          Path('site-tail.txt').write_text(tail, encoding='utf-8')
+          PY
+      - name: Commit extracts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add properties-section.html site-tail.txt
+          git commit -m "Extract properties section for Base44 integration" || exit 0
+          git push
