@@ -1,0 +1,48 @@
+name: Inject Base44 property loader
+
+on:
+  push:
+    branches:
+      - base44-property-sync
+    paths:
+      - '.github/workflows/inject-base44-loader.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  inject:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inject loader into index.html
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          tag = '<script type="module" src="base44-properties.js"></script>'
+          if tag in text:
+              print('Loader already present')
+          else:
+              marker = '</body>'
+              if marker not in text:
+                  raise SystemExit('No </body> tag found')
+              text = text.replace(marker, tag + marker, 1)
+              path.write_text(text, encoding='utf-8')
+              print('Loader injected')
+          PY
+      - name: Verify integration files
+        run: |
+          test -f base44-properties.js
+          grep -q 'base44-properties.js' index.html
+          grep -q "getPublicProperties" base44-properties.js
+          grep -q "6a8427f2fbe193e7355b37b9" base44-properties.js
+      - name: Commit integration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Connect property section to Base44 loader" || exit 0
+          git push
