@@ -1,6 +1,8 @@
 import { createClient } from 'https://esm.sh/@base44/sdk@0.8.40';
 
 const APP_ID = '6a8427f2fbe193e7355b37b9';
+const APP_ORIGIN = 'https://telaviv-lead-flow.base44.app';
+const FUNCTION_URL = `${APP_ORIGIN}/api/apps/${APP_ID}/functions/getPublicProperties`;
 const WHATSAPP_NUMBER = '972506953766';
 const container = document.querySelector('#properties .properties');
 
@@ -159,15 +161,37 @@ if (!container) {
     container.replaceChildren(fragment);
   };
 
+  const extractItems = (payload) => {
+    const body = payload?.data ?? payload ?? {};
+    if (Array.isArray(body?.properties)) return body.properties;
+    if (Array.isArray(body?.data?.properties)) return body.data.properties;
+    return [];
+  };
+
+  const loadViaHttp = async () => {
+    const response = await fetch(FUNCTION_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return extractItems(await response.json());
+  };
+
+  const loadViaSdk = async () => {
+    const response = await base44.functions.invoke('getPublicProperties', {});
+    return extractItems(response);
+  };
+
   const load = async () => {
     try {
-      const response = await base44.functions.invoke('getPublicProperties', {});
-      const payload = response?.data ?? response ?? {};
-      const items = Array.isArray(payload?.properties)
-        ? payload.properties
-        : Array.isArray(payload?.data?.properties)
-          ? payload.data.properties
-          : [];
+      let items = [];
+      try {
+        items = await loadViaHttp();
+      } catch (httpError) {
+        console.warn('[Base44 properties] Direct app URL failed; trying SDK fallback.', httpError);
+        items = await loadViaSdk();
+      }
 
       if (!items.length) {
         console.warn('[Base44 properties] No public properties returned; keeping static listings.');
