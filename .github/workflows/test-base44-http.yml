@@ -1,0 +1,66 @@
+name: Test Base44 HTTP endpoint
+
+on:
+  push:
+    branches:
+      - base44-property-sync
+    paths:
+      - '.github/workflows/test-base44-http.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Base44 function over HTTP
+        run: |
+          python - <<'PY'
+          import json, urllib.request, urllib.error
+          from pathlib import Path
+
+          url = 'https://base44.app/api/apps/6a8427f2fbe193e7355b37b9/functions/getPublicProperties'
+          req = urllib.request.Request(
+              url,
+              data=b'{}',
+              headers={'Content-Type': 'application/json'},
+              method='POST'
+          )
+          result = {'url': url}
+          try:
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  body = r.read().decode('utf-8', 'replace')
+                  result['status'] = r.status
+                  try:
+                      payload = json.loads(body)
+                      result['body_type'] = type(payload).__name__
+                      if isinstance(payload, dict):
+                          data = payload.get('data', payload)
+                          if isinstance(data, dict) and isinstance(data.get('properties'), list):
+                              result['count'] = len(data['properties'])
+                              result['fields'] = sorted(data['properties'][0].keys()) if data['properties'] else []
+                          else:
+                              result['keys'] = sorted(payload.keys())
+                      result['ok'] = r.status < 300
+                  except Exception:
+                      result['body_preview'] = body[:500]
+                      result['ok'] = False
+          except urllib.error.HTTPError as e:
+              result['status'] = e.code
+              result['body_preview'] = e.read().decode('utf-8', 'replace')[:1000]
+              result['ok'] = False
+          except Exception as e:
+              result['error'] = repr(e)
+              result['ok'] = False
+
+          Path('integration-http-result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
+          PY
+      - name: Commit HTTP test result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add integration-http-result.json
+          git commit -m "Record Base44 HTTP integration test" || exit 0
+          git push
