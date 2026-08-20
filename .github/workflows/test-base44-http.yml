@@ -21,7 +21,7 @@ jobs:
           import json, urllib.request, urllib.error
           from pathlib import Path
 
-          url = 'https://base44.app/api/apps/6a8427f2fbe193e7355b37b9/functions/getPublicProperties'
+          url = 'https://telaviv-lead-flow.base44.app/api/apps/6a8427f2fbe193e7355b37b9/functions/getPublicProperties'
           req = urllib.request.Request(
               url,
               data=b'{}',
