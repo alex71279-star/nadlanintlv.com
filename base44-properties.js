@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@base44/sdk@0.8.40';
 
 const APP_ID = '6a8427f2fbe193e7355b37b9';
-const APP_ORIGIN = 'https://telaviv-lead-flow.base44.app';
+const APP_ORIGIN = 'https://app--new-app.base44.app';
 const FUNCTION_URL = `${APP_ORIGIN}/api/apps/${APP_ID}/functions/getPublicProperties`;
 const WHATSAPP_NUMBER = '972506953766';
 const container = document.querySelector('#properties .properties');
@@ -170,9 +170,8 @@ if (!container) {
 
   const loadViaHttp = async () => {
     const response = await fetch(FUNCTION_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{}',
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return extractItems(await response.json());
@@ -189,7 +188,7 @@ if (!container) {
       try {
         items = await loadViaHttp();
       } catch (httpError) {
-        console.warn('[Base44 properties] Direct app URL failed; trying SDK fallback.', httpError);
+        console.warn('[Base44 properties] Direct public endpoint failed; trying SDK fallback.', httpError);
         items = await loadViaSdk();
       }
 
